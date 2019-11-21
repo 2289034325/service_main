@@ -4,45 +4,54 @@ package com.acxca.ava.entity;
 import java.util.Date;
 
 public class ReciteRecord {
-    private int id;
-    private int article_id;
-    private int paragraph_id;
-    private int split_id;
+    private String id;
+    private String user_id;
+    private String article_id;
+    private String paragraph_id;
+    private String split_id;
 
     private float use_time;
     private float score;
     private String content;
     private Date submit_time;
 
-    public int getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public int getArticle_id() {
+    public String getUser_id() {
+        return user_id;
+    }
+
+    public void setUser_id(String user_id) {
+        this.user_id = user_id;
+    }
+
+    public String getArticle_id() {
         return article_id;
     }
 
-    public void setArticle_id(int article_id) {
+    public void setArticle_id(String article_id) {
         this.article_id = article_id;
     }
 
-    public int getParagraph_id() {
+    public String getParagraph_id() {
         return paragraph_id;
     }
 
-    public void setParagraph_id(int paragraph_id) {
+    public void setParagraph_id(String paragraph_id) {
         this.paragraph_id = paragraph_id;
     }
 
-    public int getSplit_id() {
+    public String getSplit_id() {
         return split_id;
     }
 
-    public void setSplit_id(int split_id) {
+    public void setSplit_id(String split_id) {
         this.split_id = split_id;
     }
 

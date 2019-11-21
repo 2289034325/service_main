@@ -2,31 +2,40 @@ package com.acxca.ava.entity;
 
 import java.util.Date;
 
-public class LearnRecordWord {
-    private int id;
+public class LearnRecordDetail {
+    private String id;
     private String learn_record_id;
     private String user_id;
     private String word_id;
+    private int lang;
     private int answer_times;
     private int wrong_times;
     private Date learn_time;
-    private int learn_phase;
-    private Date next_learn_date;
+    private int phase;
+    private Date next_review_date;
     private boolean finished;
 
-    public Date getNext_learn_date() {
-        return next_learn_date;
+    public int getLang() {
+        return lang;
     }
 
-    public void setNext_learn_date(Date next_learn_date) {
-        this.next_learn_date = next_learn_date;
+    public void setLang(int lang) {
+        this.lang = lang;
     }
 
-    public int getId() {
+    public Date getNext_review_date() {
+        return next_review_date;
+    }
+
+    public void setNext_review_date(Date next_review_date) {
+        this.next_review_date = next_review_date;
+    }
+
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -62,12 +71,12 @@ public class LearnRecordWord {
         this.learn_time = learn_time;
     }
 
-    public int getLearn_phase() {
-        return learn_phase;
+    public int getPhase() {
+        return phase;
     }
 
-    public void setLearn_phase(int learn_phase) {
-        this.learn_phase = learn_phase;
+    public void setPhase(int phase) {
+        this.phase = phase;
     }
 
     public boolean isFinished() {

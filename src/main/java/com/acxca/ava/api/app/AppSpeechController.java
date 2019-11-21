@@ -4,10 +4,12 @@ import com.acxca.ava.config.Properties;
 import com.acxca.ava.entity.*;
 import com.acxca.ava.repository.SpeechRepository;
 import com.acxca.components.java.util.AliyunOSSClient;
+import com.acxca.components.spring.jwt.JwtUserDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,8 +23,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping(path = "speech",produces= MediaType.APPLICATION_JSON_VALUE)
-public class SpeechController {
+@RequestMapping(path = "app/speech",produces= MediaType.APPLICATION_JSON_VALUE)
+public class AppSpeechController {
     @Autowired
     private SpeechRepository speechRepository;
 
@@ -44,38 +46,36 @@ public class SpeechController {
     }
 
     @RequestMapping(path = "article/{id}", method = RequestMethod.GET)
-    public ResponseEntity<Object> getArticle(@PathVariable("id") int id) {
+    public ResponseEntity<Object> getArticle(@PathVariable("id") String id) {
 
         Article article = speechRepository.selectArticleById(id);
         List<Paragraph> paragraphs = speechRepository.selectAllParagraphsByArticleId(id);
         List<ParagraphSplit> splits = speechRepository.selectSplitsByArticleId(id);
+        List<Media> medias = speechRepository.selectMediasByArticleId(id);
 
         paragraphs.stream().forEach(p -> {
-            p.setSplits(splits.stream().filter(s -> s.getParagraph_id() == p.getId()).collect(Collectors.toList()));
+            p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
         });
         article.setParagraphs(paragraphs);
-
-//        if (article.getMedia_id() != null) {
-            //从oss获取音频或者视频url
-//            String mediaUrl = ossUtil.getSignedUrl(properties.getOssBucket(), article.getMedia_path() + "/" + article.getMedia_name());
-//            String mediaUrl = "speech/article/media/"+article.getMedia_id();
-//            article.setMedia_url(mediaUrl);
-//        }
+        article.setMedias(medias);
 
         return new ResponseEntity(article, HttpStatus.OK);
     }
 
     @RequestMapping(path = "article/recite/{split_id}", method = RequestMethod.GET)
-    public ResponseEntity<Object> getReciteHistory(@PathVariable("split_id") int id) {
+    public ResponseEntity<Object> getReciteHistory(@PathVariable("split_id") String id) {
+        JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-        List<ReciteRecord> records = speechRepository.selectSplitReciteHistory(id);
+        List<ReciteRecord> records = speechRepository.selectSplitReciteHistory(ud.getId(),id);
 
         return new ResponseEntity(records, HttpStatus.OK);
     }
 
     @RequestMapping(path = "article/recite", method = RequestMethod.POST)
     public ResponseEntity<Object> saveReciteHistory(@RequestBody ReciteRecord record) {
+        JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
+        record.setUser_id(ud.getId());
         record.setSubmit_time(new Date());
 
         speechRepository.insertSplitReciteRecord(record);
@@ -85,7 +85,7 @@ public class SpeechController {
 
     @RequestMapping(path = "article/recite", method = RequestMethod.PUT)
     public ResponseEntity<Object> setReciteScore(@RequestBody Map param) {
-        int id = Integer.parseInt(param.get("id").toString());
+        String id = param.get("id").toString();
         float score = Integer.parseInt(param.get("score").toString());
 
         speechRepository.updateReciteScore(id,score);
@@ -94,14 +94,14 @@ public class SpeechController {
     }
 
     @RequestMapping(path = "article/media/{id}", method = RequestMethod.GET)
-    public void getMedia(HttpServletRequest request, HttpServletResponse response, @PathVariable("id")int id ) {
+    public void getMedia(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") String id) {
 
         Media m = speechRepository.selectMedia(id);
 
         // 先看本地有没有，没有就从oss下载，保存到服务端后再返回给客户端
         File file = null;
         try {
-            String path = Paths.get(properties.getMediaLocalPath() , m.getName()).toString();
+            String path = Paths.get(properties.getMediaLocalPath(), m.getName()).toString();
             file = new File(path);
             //确保目录存在
             file.getParentFile().mkdirs();
@@ -109,9 +109,9 @@ public class SpeechController {
             if (!file.exists()) {
                 file.createNewFile();
                 FileOutputStream fos = new FileOutputStream(file);
-                ossUtil.downLoadOssFile(fos, properties.getOssBucket(), properties.getOssMediaFolder()+"/"+m.getName());
+                ossUtil.downLoadOssFile(fos, properties.getOssBucket(), properties.getOssMediaFolder() + "/" + m.getName());
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
 
@@ -156,7 +156,7 @@ public class SpeechController {
         response.setHeader("Content-Range", "bytes " + startByte + "-" + endByte + "/" + file.length());
         //Content-disposition: inline; filename=xxx.xxx 表示浏览器内嵌显示该文件
         //Content-disposition: attachment; filename=xxx.xxx 表示浏览器下载该文件
-        response.setHeader("Content-Disposition", "inline; filename=" + m.getName());
+        response.setHeader("Content-Disposition", "inline; filename=\"" + m.getName()+"\"");
 
         //传输文件流
         BufferedOutputStream outputStream = null;

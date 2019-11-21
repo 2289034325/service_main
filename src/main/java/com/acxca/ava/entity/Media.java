@@ -2,17 +2,17 @@ package com.acxca.ava.entity;
 
 
 public class Media {
-    public int id;
+    public String id;
     public String name;
-    public String type;
     public String path;
+    public int usage;
     public float time;
 
-    public int getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -24,12 +24,12 @@ public class Media {
         this.name = name;
     }
 
-    public String getType() {
-        return type;
+    public int getUsage() {
+        return usage;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setUsage(int usage) {
+        this.usage = usage;
     }
 
     public String getPath() {

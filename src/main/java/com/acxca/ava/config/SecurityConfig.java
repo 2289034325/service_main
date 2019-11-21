@@ -53,6 +53,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeRequests()
                 .antMatchers("/auth/**").permitAll()
+                .antMatchers("/console/speech/article/media/**").permitAll()
+                .antMatchers("/app/speech/article/media/**").permitAll()
+                .antMatchers("/favicon.ico").permitAll()
+                .antMatchers("/kaptcha/**").permitAll()
+                .antMatchers("/console/**").hasAnyAuthority("admin")
                 .anyRequest().authenticated().
                 // 权限问题处理
                 and().exceptionHandling().accessDeniedHandler(new CustomAccessDeniedHandler());

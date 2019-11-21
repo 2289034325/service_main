@@ -22,8 +22,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping(path = "dictionary",produces= MediaType.APPLICATION_JSON_VALUE)
-public class DictionaryController {
+@RequestMapping(path = "console/dictionary",produces= MediaType.APPLICATION_JSON_VALUE)
+public class ConsoleDictionaryController {
     @Autowired
     private DictionaryRepository dictionaryRepository;
 
@@ -84,7 +84,6 @@ public class DictionaryController {
     @RequestMapping(path = "word/list",method = RequestMethod.GET)
     public ResponseEntity<Object> searchWordList(@RequestParam(value = "lang", required=false) Integer lang,
                                                  @RequestParam(value = "spell", required=false) String spell,
-                                                 @RequestParam(value = "book", required=false) String book,
                                                  @RequestParam("pageSize") int pageSize,
                                                  @RequestParam("currentPage") int currentPage) {
         if(spell!=null) {
@@ -93,28 +92,28 @@ public class DictionaryController {
 
         int count = 0;
         if(lang== null){
-            count = dictionaryRepository.selectWord4Count(lang,spell,book);
+            count = dictionaryRepository.selectWord4Count(lang,spell);
         }
         else{
             if(lang.equals(Lang.JP.getId())){
-                count = dictionaryRepository.selectWord5Count(lang,spell,book);
+                count = dictionaryRepository.selectWord5Count(lang,spell);
             }
             else{
-                count = dictionaryRepository.selectWord4Count(lang,spell,book);
+                count = dictionaryRepository.selectWord4Count(lang,spell);
             }
         }
 
         List<Word> words = new ArrayList<>();
         if(count > 0) {
             if(lang== null){
-                words = dictionaryRepository.selectWord4(lang, spell, book, pageSize * (currentPage-1), pageSize);
+                words = dictionaryRepository.selectWord4(lang, spell, pageSize * (currentPage-1), pageSize);
             }
             else{
                 if(lang.equals(Lang.JP.getId())){
-                    words = dictionaryRepository.selectWord5(lang, spell, book, pageSize * (currentPage-1), pageSize);
+                    words = dictionaryRepository.selectWord5(lang, spell, pageSize * (currentPage-1), pageSize);
                 }
                 else{
-                    words = dictionaryRepository.selectWord4(lang, spell, book, pageSize * (currentPage-1), pageSize);
+                    words = dictionaryRepository.selectWord4(lang, spell, pageSize * (currentPage-1), pageSize);
                 }
             }
         }
@@ -161,6 +160,7 @@ public class DictionaryController {
         }
 
         //插入
+        word.setId(UUID.randomUUID().toString());
         dictionaryRepository.insertWord(word);
 
         return new ResponseEntity(word, HttpStatus.OK);
@@ -182,10 +182,8 @@ public class DictionaryController {
     }
 
     @RequestMapping(path = "word",method = RequestMethod.DELETE)
-    @Transactional
     public ResponseEntity<Object> deleteWord(@RequestBody Word word){
 
-        word.setDeleted(true);
         dictionaryRepository.softDeletedWord(word.getId());
 
         return new ResponseEntity("", HttpStatus.OK);
@@ -194,6 +192,7 @@ public class DictionaryController {
     @RequestMapping(path = "explain",method = RequestMethod.POST)
     public ResponseEntity<Object> addExplain(@RequestBody Explain explain) {
 
+        explain.setId(UUID.randomUUID().toString());
         dictionaryRepository.insertExplain(explain);
 
         return new ResponseEntity(explain, HttpStatus.OK);
@@ -210,7 +209,6 @@ public class DictionaryController {
     @RequestMapping(path = "explain",method = RequestMethod.DELETE)
     public ResponseEntity<Object> deleteExplain(@RequestBody Explain explain) throws Exception{
 
-        explain.setDeleted(true);
         dictionaryRepository.softDeletedExplain(explain.getId());
 
         return new ResponseEntity("", HttpStatus.OK);
@@ -220,6 +218,7 @@ public class DictionaryController {
     @RequestMapping(path = "sentence",method = RequestMethod.POST)
     public ResponseEntity<Object> addSentence(@RequestBody Sentence sentence) {
 
+        sentence.setId(UUID.randomUUID().toString());
         dictionaryRepository.insertSentence(sentence);
 
         return new ResponseEntity(sentence, HttpStatus.OK);
@@ -236,25 +235,7 @@ public class DictionaryController {
     @RequestMapping(path = "sentence",method = RequestMethod.DELETE)
     public ResponseEntity<Object> deleteSentence(@RequestBody Sentence sentence){
 
-        sentence.setDeleted(true);
         dictionaryRepository.softDeletedSentence(sentence.getId());
-
-        return new ResponseEntity("", HttpStatus.OK);
-    }
-
-    @RequestMapping(path = "word/spider",method = RequestMethod.POST)
-    public ResponseEntity<Object> grabBatchWords(@RequestBody Map map){
-
-        //暂时不允许超过30个词
-        String words_str = map.get("words").toString();
-        List<String> words = Arrays.asList(words_str.split("[,，]",-1));
-        int maxCount = 30;
-        if(words.size()>maxCount){
-            throw new BusinessException(CustomMessageMap.SCRAWL_COUNT_LIMIT);
-        }
-
-        String apiPath = properties.getSpiderServiceUrl()+properties.getSpiderServiceApiVocQueue();
-        ResponseEntity<String> res = restTemplate.postForEntity(apiPath,map,String.class);
 
         return new ResponseEntity("", HttpStatus.OK);
     }

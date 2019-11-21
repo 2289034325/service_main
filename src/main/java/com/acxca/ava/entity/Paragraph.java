@@ -5,19 +5,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Paragraph {
-    private int id;
+    private String id;
     private String performer;
     private String text;
     private String translation;
-    private int article_id;
-    private Integer insert_after;
+    private String article_id;
+    private int index;
     private List<ParagraphSplit> splits;
 
     public Paragraph(){
         this.splits = new ArrayList<>();
     }
 
-    public Paragraph(int article_id, String performer,String text,String translation){
+    public Paragraph(String article_id, String performer,String text,String translation){
         this.article_id=article_id;
         this.performer = performer;
         this.text = text;
@@ -34,19 +34,19 @@ public class Paragraph {
         this.performer = performer;
     }
 
-    public Integer getInsert_after() {
-        return insert_after;
+    public int getIndex() {
+        return index;
     }
 
-    public void setInsert_after(Integer insert_after) {
-        this.insert_after = insert_after;
+    public void setIndex(int index) {
+        this.index = index;
     }
 
-    public int getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -66,11 +66,11 @@ public class Paragraph {
         this.translation = translation;
     }
 
-    public int getArticle_id() {
+    public String getArticle_id() {
         return article_id;
     }
 
-    public void setArticle_id(int article_id) {
+    public void setArticle_id(String article_id) {
         this.article_id = article_id;
     }
 

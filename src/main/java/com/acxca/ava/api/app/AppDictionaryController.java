@@ -6,7 +6,7 @@ import com.acxca.ava.entity.*;
 import com.acxca.ava.repository.DictionaryRepository;
 import com.acxca.components.java.entity.BusinessException;
 import com.acxca.components.java.util.DateUtil;
-import com.acxca.components.spring.jwt.JwtCertificate;
+import com.acxca.components.spring.jwt.JwtUserDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,8 +20,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping(path = "dictionary",produces= MediaType.APPLICATION_JSON_VALUE)
-public class DictionaryController {
+@RequestMapping(path = "app/dictionary",produces= MediaType.APPLICATION_JSON_VALUE)
+public class AppDictionaryController {
 
     @Autowired
     private DictionaryRepository dictionaryRepository;
@@ -38,13 +38,15 @@ public class DictionaryController {
 
     @RequestMapping(path = "word/stat",method = RequestMethod.GET)
     public ResponseEntity<Object> getMyWords() {
-        JwtCertificate ud = (JwtCertificate)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-        // 取改用户的所有词
-        List<UserWord> words = dictionaryRepository.selectUserWords(ud.getUserId());
+        // 用户的所有词
+        List<UserWord> words = dictionaryRepository.selectUserWords(ud.getId());
+        // 需要复习的词
+        List<UserWord> words_need_review = dictionaryRepository.selectNeedReviewUserWords(ud.getId());
 
         List<UserWordStat> ret = new ArrayList<>();
-        int total_count,notstart_count,learning_count,finished_count;
+        int total_count,notstart_count,learning_count,finished_count,needreview_count;
         // 按语种分组
         List<Integer> langs = words.stream().map(w->w.getLang()).distinct().collect(Collectors.toList());
         for(int lang : langs){
@@ -54,7 +56,18 @@ public class DictionaryController {
             learning_count = (int)w_lang.stream().filter(w->w.getLast_review_time() != null && !w.isFinished()).count();
             finished_count = (int)w_lang.stream().filter(w->w.isFinished()).count();
 
-            ret.add(new UserWordStat(lang,total_count,notstart_count,learning_count,finished_count));
+            needreview_count = (int)words_need_review.stream().filter(w->w.getLang() == lang).count();
+
+            UserWordStat us = new UserWordStat(lang,total_count,notstart_count,learning_count,finished_count,needreview_count);
+
+            // 最近一次学习
+            LearnRecord lr = dictionaryRepository.selectLastLearRecord(ud.getId(),lang);
+            if(lr != null){
+                us.setLast_learn_time(lr.getStart_time());
+                us.setLast_learn_count(lr.getWord_count());
+            }
+
+            ret.add(us);
         }
 
         return new ResponseEntity(ret, HttpStatus.OK);
@@ -64,17 +77,17 @@ public class DictionaryController {
     public ResponseEntity<Object> restartWrods(@RequestBody String[] words) {
 
         //重置单词进度
-        dictionaryRepository.updateUserWordsProgress(words);
+        dictionaryRepository.resetUserWordsProgress(words);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
     @RequestMapping(path = "word/learn_new/{lang}/{count}",method = RequestMethod.GET)
     public ResponseEntity<Object> learNewWords(@PathVariable int lang,@PathVariable int count) {
-        JwtCertificate ud = (JwtCertificate)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         //选取尚未学习的新词
-        List<Word> words = dictionaryRepository.selectNewWords(ud.getUserId(),lang,count);
+        List<Word> words = dictionaryRepository.selectNewWords(ud.getId(),lang,count);
 
         //填充释义和例句
         fillInfo(words);
@@ -102,10 +115,10 @@ public class DictionaryController {
 
     @RequestMapping(path = "word/review_old/{lang}/{count}",method = RequestMethod.GET)
     public ResponseEntity<Object> reviewOldWords(@PathVariable int lang,@PathVariable int count) {
-        JwtCertificate ud = (JwtCertificate)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         //选取需要复习的单词
-        List<Word> words = dictionaryRepository.selectNeedReviewWords(ud.getUserId(),lang,count);
+        List<Word> words = dictionaryRepository.selectNeedReviewWords(ud.getId(),lang,count);
 
         //填充释义和例句
         fillInfo(words);
@@ -116,8 +129,13 @@ public class DictionaryController {
     @RequestMapping(path = "learn/record/save",method = RequestMethod.POST)
     @Transactional
     public ResponseEntity<Object> saveLearningRecord(@RequestBody LearnRecord learnRecord) {
-        JwtCertificate ud = (JwtCertificate)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        // learnRecord的id由前台生成
         learnRecord.setUser_id(ud.getId());
+        // 合计次数
+        learnRecord.setAnswer_times(learnRecord.getDetail().stream().mapToInt(l->l.getAnswer_times()).sum());
+        learnRecord.setWrong_times(learnRecord.getDetail().stream().mapToInt(l->l.getWrong_times()).sum());
 
         //防止重复插入，如果重复，认为成功
         LearnRecord lr = dictionaryRepository.selectLearnRecord(learnRecord.getId());
@@ -126,33 +144,35 @@ public class DictionaryController {
         }
 
         learnRecord.getDetail().forEach(r->{
+            r.setId(UUID.randomUUID().toString());
             r.setLearn_record_id(learnRecord.getId());
             //冗余信息方便查询
             r.setUser_id(learnRecord.getUser_id());
-
             r.setLearn_time(learnRecord.getEnd_time());
+
             //到最后一期，标记为学习结束
-            r.setLearn_phase(r.getLearn_phase()+1);
-            if(r.getLearn_phase() == properties.getLearnPhaseMax()){
-                //已经结束，不需要再复习。随便给个日期
-                r.setNext_learn_date(new Date());
+            r.setPhase(r.getPhase()+1);
+            if(r.getPhase() == properties.getLearnPhaseMax()){
+                //已经结束，不需要再复习，置空
+                r.setNext_review_date(null);
                 r.setFinished(true);
             }
             else {
                 //如果未结束，计算出下次应该复习的日期
                 Date today = dateUtil.getCurrentDate();
-                switch(r.getLearn_phase()){
+                int oneDay = 3600*24*1000;
+                switch(r.getPhase()){
                     case 1:
-                        r.setNext_learn_date(new Date(today.getTime()+ properties.getLearnPhaseInterval1()*3600*24*1000));
+                        r.setNext_review_date(new Date(today.getTime()+ properties.getLearnPhaseInterval1()*oneDay));
                         break;
                     case 2:
-                        r.setNext_learn_date(new Date(today.getTime()+ properties.getLearnPhaseInterval2()*3600*24*1000));
+                        r.setNext_review_date(new Date(today.getTime()+ properties.getLearnPhaseInterval2()*oneDay));
                         break;
                     case 3:
-                        r.setNext_learn_date(new Date(today.getTime()+ properties.getLearnPhaseInterval3()*3600*24*1000));
+                        r.setNext_review_date(new Date(today.getTime()+ properties.getLearnPhaseInterval3()*oneDay));
                         break;
                     case 4:
-                        r.setNext_learn_date(new Date(today.getTime()+ properties.getLearnPhaseInterval4()*3600*24*1000));
+                        r.setNext_review_date(new Date(today.getTime()+ properties.getLearnPhaseInterval4()*oneDay));
                         break;
                 }
             }
@@ -161,17 +181,21 @@ public class DictionaryController {
 
         //插入学习记录
         dictionaryRepository.insertLearnRecord(learnRecord);
-        dictionaryRepository.insertLearnRecordWord(learnRecord.getDetail());
-        //插入单词进度
-        dictionaryRepository.updateUserWordProgress(learnRecord.getDetail());
+        dictionaryRepository.insertLearnRecordDetail(learnRecord.getDetail());
+
+        //更新单词进度
+        for(LearnRecordDetail ld: learnRecord.getDetail()){
+            dictionaryRepository.updateUserWordProgress(ld);
+        }
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
     @RequestMapping(path = "word/search",method = RequestMethod.GET)
     @CrossOrigin
+    @Transactional
     public ResponseEntity<Object> searchWord(@RequestParam("lang") int lang,@RequestParam("form") String word_form){
-        JwtCertificate ud = (JwtCertificate)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         String form = word_form.trim();
 
@@ -185,10 +209,29 @@ public class DictionaryController {
                 param.put("lang", lang);
                 param.put("form", form);
                 String apiPath = properties.getSpiderServiceUrl() + properties.getSpiderServiceApiVocGrab();
-                restTemplate.getForEntity(apiPath, String.class, param);
+                ResponseEntity<Word[]> resp = restTemplate.getForEntity(apiPath, Word[].class, param);
 
-                // 爬虫服务爬到数据后会保存入库，这里再次查询
-                // TODO 爬虫服务不应该直接保存入库，应当在这里保存
+                Word[] ws = resp.getBody();
+                for(Word w : ws) {
+                    w.setId(UUID.randomUUID().toString());
+                    dictionaryRepository.insertWord(w);
+                    for (Explain exp : w.getExplains()) {
+                        exp.setId(UUID.randomUUID().toString());
+                        exp.setWord_id(w.getId());
+                        dictionaryRepository.insertExplain(exp);
+                        for (Sentence s : exp.getSentences()) {
+                            s.setId(UUID.randomUUID().toString());
+                            s.setExplain_id(exp.getId());
+                            s.setWord_id(w.getId());
+                            dictionaryRepository.insertSentence(s);
+                        }
+                    }
+
+                    // 插入到用户词汇
+                    insertUserWord(w,ud.getId());
+                }
+
+                // 保存入库后再次查询
                 ret = selectWords(lang, form);
             }
         } catch (Exception e) {
@@ -202,6 +245,26 @@ public class DictionaryController {
 
         return new ResponseEntity(ret, HttpStatus.OK);
 
+    }
+
+    private void insertUserWord(Word w,String user_id){
+        // 检查是否已经存在
+        UserWord ouw = dictionaryRepository.selectUserWord(user_id,w.getId());
+        if(ouw != null){
+            return;
+        }
+
+        UserWord uw = new UserWord();
+        uw.setId(UUID.randomUUID().toString());
+        uw.setUser_id(user_id);
+        uw.setWord_id(w.getId());
+        uw.setLang(w.getLang());
+        uw.setPhase(0);
+        uw.setFinished(false);
+        uw.setLast_review_time(null);
+        uw.setNext_review_date(null);
+
+        dictionaryRepository.insertUserWord(uw);
     }
 
     private Map selectWords(int lang, String form) {

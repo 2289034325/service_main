@@ -5,8 +5,8 @@ import java.util.List;
 
 public class Explain
 {
-    private Integer id;
-    private Integer word_id;
+    private String id;
+    private String word_id;
     private String pronounce;
     private String explain;
     private List<Sentence> sentences;
@@ -28,19 +28,19 @@ public class Explain
         this.pronounce = pronounce;
     }
 
-    public Integer getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public Integer getWord_id() {
+    public String getWord_id() {
         return word_id;
     }
 
-    public void setWord_id(Integer word_id) {
+    public void setWord_id(String word_id) {
         this.word_id = word_id;
     }
 

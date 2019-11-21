@@ -1,11 +1,15 @@
 package com.acxca.ava.api.console;
 
 import com.acxca.ava.config.Properties;
+import com.acxca.ava.consts.CustomMessageMap;
+import com.acxca.ava.consts.MediaUsage;
 import com.acxca.ava.entity.Article;
 import com.acxca.ava.entity.Media;
 import com.acxca.ava.entity.Paragraph;
 import com.acxca.ava.entity.ParagraphSplit;
 import com.acxca.ava.repository.SpeechRepository;
+import com.acxca.components.java.consts.BusinessMessageMap;
+import com.acxca.components.java.entity.BusinessException;
 import com.acxca.components.java.util.AliyunOSSClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,11 +24,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping(path = "speech",produces= MediaType.APPLICATION_JSON_VALUE)
-public class SpeechController {
+@RequestMapping(path = "console/speech", produces = MediaType.APPLICATION_JSON_VALUE)
+public class ConsoleSpeechController {
     @Autowired
     private SpeechRepository speechRepository;
 
@@ -34,36 +39,32 @@ public class SpeechController {
     @Autowired
     private Properties properties;
 
-    @RequestMapping(path = "article/list",method = RequestMethod.GET)
-    public ResponseEntity<Object> searchArticles(@RequestParam(value = "lang",required = false) Integer lang,@RequestParam(value = "title",required = false) String title) {
+    @RequestMapping(path = "article/list", method = RequestMethod.GET)
+    public ResponseEntity<Object> searchArticles(@RequestParam(value = "lang", required = false) Integer lang, @RequestParam(value = "title", required = false) String title) {
 
-        Iterable<Article> articles = speechRepository.selectArticles(lang,title);
+        Iterable<Article> articles = speechRepository.selectArticles(lang, title);
 
         return new ResponseEntity(articles, HttpStatus.OK);
     }
 
-    @RequestMapping(path = "article/{id}",method = RequestMethod.GET)
-    public ResponseEntity<Object> getArticle(@PathVariable("id") int id) {
+    @RequestMapping(path = "article/{id}", method = RequestMethod.GET)
+    public ResponseEntity<Object> getArticle(@PathVariable("id") String id) {
 
         Article article = speechRepository.selectArticleById(id);
         List<Paragraph> paragraphs = speechRepository.selectAllParagraphsByArticleId(id);
         List<ParagraphSplit> splits = speechRepository.selectSplitsByArticleId(id);
+        List<Media> medias = speechRepository.selectMediasByArticleId(id);
 
-        paragraphs.stream().forEach(p->{
-            p.setSplits(splits.stream().filter(s->s.getParagraph_id() == p.getId()).collect(Collectors.toList()));
+        paragraphs.stream().forEach(p -> {
+            p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
         });
         article.setParagraphs(paragraphs);
-
-//        if(article.getMedia_id() != null) {
-//            //从oss获取音频或者视频url
-//            String mediaUrl = ossUtil.getSignedUrl(properties.getOssBucket(), article.getMedia_path() + "/" + article.getMedia_name());
-//            article.setMedia_url(mediaUrl);
-//        }
+        article.setMedias(medias);
 
         return new ResponseEntity(article, HttpStatus.OK);
     }
 
-    @RequestMapping(path = "article/modify",method = RequestMethod.PUT)
+    @RequestMapping(path = "article/modify", method = RequestMethod.PUT)
     public ResponseEntity<Object> modifyArticle(@RequestBody Article article) {
 
         speechRepository.updateArticle(article);
@@ -71,91 +72,96 @@ public class SpeechController {
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "article/{id}",method = RequestMethod.DELETE)
-    public ResponseEntity<Object> deleteArticle(@PathVariable int id) {
+    @RequestMapping(path = "article/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<Object> deleteArticle(@PathVariable String id) {
 
         speechRepository.deleteArticle(id);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "article/add",method = RequestMethod.POST)
+    @RequestMapping(path = "article/add", method = RequestMethod.POST)
     public ResponseEntity<Object> addArticle(@RequestBody Article article) {
 
+        article.setId(UUID.randomUUID().toString());
         speechRepository.insertArticle(article);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "article/{articleId}/paragraphs",method = RequestMethod.GET)
-    public ResponseEntity<Object> getParagraphs(@PathVariable("articleId") int articleId) {
+    @RequestMapping(path = "article/{articleId}/paragraphs", method = RequestMethod.GET)
+    public ResponseEntity<Object> getParagraphs(@PathVariable("articleId") String articleId) {
 
         Iterable<Paragraph> paragraphs = speechRepository.selectAllParagraphsByArticleId(articleId);
 
         return new ResponseEntity(paragraphs, HttpStatus.OK);
     }
 
-    @RequestMapping(path = "media/add",method = RequestMethod.POST)
+    /**
+     *
+     * @param file
+     * @param article_id
+     * @param media_usage 可以是原声video,audio，可以是讲解视频，可以是模仿视频音频
+     * @return
+     * @throws Exception
+     */
+    @RequestMapping(path = "media/add", method = RequestMethod.POST)
     @Transactional
-    public ResponseEntity<Object> uploadFile(@RequestParam("file") MultipartFile file, @RequestParam("article_id") Integer article_id)throws Exception{
+    public ResponseEntity<Object> uploadFile(@RequestParam("file") MultipartFile file,
+                                             @RequestParam("article_id") String article_id,
+                                             @RequestParam("media_usage") int media_usage) throws Exception {
+
+        Article article = speechRepository.selectArticleById(article_id);
+
         //以输入流的形式上传文件
         InputStream is = file.getInputStream();
         //文件名
-        String fileName = file.getOriginalFilename();
+        String originalFilename = file.getOriginalFilename();
+        String fileNameSuffix = originalFilename.substring(originalFilename.lastIndexOf(".") + 1);
+        MediaUsage mu = MediaUsage.fromValue(media_usage);
+        if(mu == null){
+            throw new BusinessException(CustomMessageMap.REQUEST_PARAM_INVALID);
+        }
+        String fileName = article.getPerformer() + "-" + article.getTitle() + "-" + mu.getName() + "." + fileNameSuffix;
         //文件大小
         Long fileSize = file.getSize();
 
-        ossUtil.uploadObject2OSS(is,fileName,fileSize,properties.getOssBucket(),properties.getOssMediaFolder());
+        ossUtil.uploadObject2OSS(is, fileName, fileSize, properties.getOssBucket(), properties.getOssMediaFolder());
 
-        String name = file.getOriginalFilename();
-        String type = name.substring(name.lastIndexOf(".")+1);
         String path = properties.getOssMediaFolder();
         //时长暂时不解析 TODO
         float time = 0;
 
-        Media md  = new Media();
-        md.setName(name);
-        md.setType(type);
+        Media md = new Media();
+        md.setId(UUID.randomUUID().toString());
+        md.setName(fileName);
+        md.setUsage(media_usage);
         md.setPath(path);
         md.setTime(time);
 
         speechRepository.insertMedia(md);
-        speechRepository.updateMediaId(article_id,md.getId());
+        speechRepository.insertArticleMediaR(UUID.randomUUID().toString(),article_id,md.getId(),media_usage);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "paragraph/add",method = RequestMethod.POST)
+    @RequestMapping(path = "paragraph/add", method = RequestMethod.POST)
     @Transactional
-    public ResponseEntity<Object> addSingleParagraph(@RequestBody List<Paragraph> paragraphs)throws Exception {
-
-        //全文翻译暂时不做
-//        paragraph.setTranslation("");
-//        int aid = paragraph.getArticle_id();
-//        String pfm = paragraph.getPerformer();
-
-        //如果有换行，自动处理成多个段落插入
-        //[\r,\n]有问题!!!，有可能会将单个句子拆开
-//        String[] ps = paragraph.getText().split("[\r\n]",-1);
-//        List<Paragraph> pras = Arrays.stream(ps).map(t->new Paragraph(aid,pfm,t,"")).collect(Collectors.toList());
-
-        //插入后引发排序问题，暂不允许插入
-//        pras.get(0).setInsert_after(paragraph.getInsert_after());
-//        if(pras.size()>1 && paragraph.getInsert_after() != null){
-//            //插入模式，不能插入多个段落
-//            throw new BusinessException(CustomMessageMap.SPEECH_CAN_NOT_INSERT_MULTI_PARAGARPH);
-//        }
+    public ResponseEntity<Object> addParagraphs(@RequestBody List<Paragraph> paragraphs) throws Exception {
 
         //循环插入段落和分段
-        paragraphs.forEach(p->{
+        paragraphs.forEach(p -> {
+            p.setId(UUID.randomUUID().toString());
             speechRepository.insertParagraph(p);
 
             //whole paragraph as a split
             ParagraphSplit split = new ParagraphSplit();
             split.setArticle_id(p.getArticle_id());
             split.setParagraph_id(p.getId());
+            split.setId(UUID.randomUUID().toString());
+
             split.setStart_index(0);
-            split.setEnd_index(p.getText().length()-1);
+            split.setEnd_index(p.getText().length() - 1);
             split.setStart_time(0);
             split.setEnd_time(0);
             speechRepository.insertSplit(split);
@@ -164,33 +170,7 @@ public class SpeechController {
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-//    @RequestMapping(path = "paragraph/add/batch",method = RequestMethod.POST)
-//    public ResponseEntity<Object> addMultipleParagraphs(@RequestBody List<Paragraph> paragraphs)throws Exception {
-//
-//        for (Paragraph paragraph : paragraphs) {
-//            paragraph = add_paragraph(paragraph);
-//        }
-//
-//        return new ResponseEntity(paragraphs, HttpStatus.OK);
-//    }
-
-//    private void add_paragraph(Paragraph paragraph){
-//        //insert
-//        speechRepository.insertParagraph(paragraph);
-//
-//        //whole paragraph as a split
-//        ParagraphSplit split = new ParagraphSplit();
-//        split.setArticle_id(paragraph.getArticle_id());
-//        split.setParagraph_id(paragraph.getId());
-//        split.setStart_index(0);
-//        split.setEnd_index(paragraph.getText().length()-1);
-//        split.setStart_time(0);
-//        split.setEnd_time(0);
-//        speechRepository.insertSplit(split);
-//        paragraph.getSplits().add(split);
-//    }
-
-    @RequestMapping(path = "paragraph/modify",method = RequestMethod.POST)
+    @RequestMapping(path = "paragraph/modify", method = RequestMethod.POST)
     public ResponseEntity<Object> modifyParagraph(@RequestBody Paragraph paragraph) {
 
         speechRepository.updateParagraph(paragraph);
@@ -198,43 +178,28 @@ public class SpeechController {
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "paragraph/{id}",method = RequestMethod.DELETE)
-    @Transactional
-    public ResponseEntity<Object> deleteParagraph(@PathVariable int id)throws Exception {
-        Paragraph p = speechRepository.selectParagraphById(id);
+    @RequestMapping(path = "paragraph/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<Object> deleteParagraph(@PathVariable String id) {
 
         speechRepository.deleteParagraph(id);
-
-//        //update article's paragraph sequence
-//        Article article = speechRepository.selectArticleById(p.getArticle_id());
-//        String ids = article.getParagraph_sequence();
-//        if(StringUtils.isEmpty(ids))
-//        {
-//            throw new Exception("article's paragraph sequence string should not be empty!");
-//        }
-//        //kick out this paragraph's id
-//        ids = String.join(",",Arrays.stream(ids.split(",")).filter(pid-> !StringUtils.isEmpty(pid) && Integer.parseInt(pid) != id).collect(Collectors.toList()));
-//
-//        article.setParagraph_sequence(ids);
-
-//        List<Paragraph> ps = speechRepository.selectAllParagraphsByArticleId(p.getArticle_id());
-//        String sqs = String.join(",",ps.stream().map(prg->String.valueOf(prg.getId())).collect(Collectors.toList()));
-//        speechRepository.updateArticle2(p.getArticle_id(),sqs);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "paragraph/split",method = RequestMethod.POST)
+    @RequestMapping(path = "paragraph/split", method = RequestMethod.POST)
     @Transactional
     public ResponseEntity<Object> splitParagraph(@RequestBody Paragraph paragraph) {
 
         speechRepository.deleteSplits(paragraph.getId());
+        for(ParagraphSplit ps: paragraph.getSplits()){
+            ps.setId(UUID.randomUUID().toString());
+        }
         speechRepository.insertSplits(paragraph.getSplits());
 
         return new ResponseEntity("", HttpStatus.OK);
     }
 
-    @RequestMapping(path = "paragraph/split/settime",method = RequestMethod.POST)
+    @RequestMapping(path = "paragraph/split/settime", method = RequestMethod.POST)
     public ResponseEntity<Object> setSplitTime(@RequestBody ParagraphSplit split) {
 
         speechRepository.updateSplitTime(split);
@@ -244,24 +209,24 @@ public class SpeechController {
 
 
     @RequestMapping(path = "article/media/{id}", method = RequestMethod.GET)
-    public void getMedia(HttpServletRequest request, HttpServletResponse response, @PathVariable("id")int id ) {
+    public void getMedia(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") String id) {
 
         Media m = speechRepository.selectMedia(id);
 
         // 先看本地有没有，没有就从oss下载，保存到服务端后再返回给客户端
         File file = null;
         try {
-            String path = Paths.get(properties.getMediaLocalPath() , m.getName()).toString();
+            String path = Paths.get(properties.getMediaLocalPath(), m.getName()).toString();
             file = new File(path);
             //确保目录存在
             file.getParentFile().mkdirs();
-            
+
             if (!file.exists()) {
                 file.createNewFile();
                 FileOutputStream fos = new FileOutputStream(file);
-                ossUtil.downLoadOssFile(fos, properties.getOssBucket(), properties.getOssMediaFolder()+"/"+m.getName());
+                ossUtil.downLoadOssFile(fos, properties.getOssBucket(), properties.getOssMediaFolder() + "/" + m.getName());
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
 
@@ -306,7 +271,7 @@ public class SpeechController {
         response.setHeader("Content-Range", "bytes " + startByte + "-" + endByte + "/" + file.length());
         //Content-disposition: inline; filename=xxx.xxx 表示浏览器内嵌显示该文件
         //Content-disposition: attachment; filename=xxx.xxx 表示浏览器下载该文件
-        response.setHeader("Content-Disposition", "inline; filename=" + m.getName());
+        response.setHeader("Content-Disposition", "inline; filename=\"" + m.getName()+"\"");
 
         //传输文件流
         BufferedOutputStream outputStream = null;

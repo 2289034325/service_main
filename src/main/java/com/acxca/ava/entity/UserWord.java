@@ -9,8 +9,26 @@ public class UserWord {
     private int lang;
     private int phase;
     private boolean finished;
+    private int answer_times;
+    private int wrong_times;
     private Date last_review_time;
     private Date next_review_date;
+
+    public int getAnswer_times() {
+        return answer_times;
+    }
+
+    public void setAnswer_times(int answer_times) {
+        this.answer_times = answer_times;
+    }
+
+    public int getWrong_times() {
+        return wrong_times;
+    }
+
+    public void setWrong_times(int wrong_times) {
+        this.wrong_times = wrong_times;
+    }
 
     public String getId() {
         return id;

@@ -12,7 +12,7 @@ public class LearnRecord {
     private int wrong_times;
     private Date start_time;
     private Date end_time;
-    private List<LearnRecordWord> detail;
+    private List<LearnRecordDetail> detail;
 
     public String getId() {
         return id;
@@ -78,11 +78,11 @@ public class LearnRecord {
         this.end_time = end_time;
     }
 
-    public List<LearnRecordWord> getDetail() {
+    public List<LearnRecordDetail> getDetail() {
         return detail;
     }
 
-    public void setDetail(List<LearnRecordWord> detail) {
+    public void setDetail(List<LearnRecordDetail> detail) {
         this.detail = detail;
     }
 }

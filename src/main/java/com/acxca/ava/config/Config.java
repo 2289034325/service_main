@@ -4,6 +4,7 @@ package com.acxca.ava.config;
 import com.acxca.components.java.util.AliyunOSSClient;
 import com.acxca.components.java.util.DateUtil;
 import com.acxca.components.spring.config.JwtAuthConfig;
+import com.acxca.components.spring.config.KaptchaConfig;
 import com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceBuilder;
 import com.aliyun.oss.OSSClient;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -12,6 +13,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -21,8 +23,9 @@ import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import javax.sql.DataSource;
 
 @Configuration
-@MapperScan(basePackages = {"com.acxca.onedollar.repository"})
-@Import({JwtAuthConfig.class})
+@ComponentScan(basePackages = "com.acxca.ava.service")
+@MapperScan(basePackages = {"com.acxca.ava.repository"})
+@Import({JwtAuthConfig.class, KaptchaConfig.class})
 public class Config {
 
     @Autowired
@@ -54,7 +57,7 @@ public class Config {
     RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(1000);
-        requestFactory.setReadTimeout(1000);
+        requestFactory.setReadTimeout(5000);
 
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         return restTemplate;
