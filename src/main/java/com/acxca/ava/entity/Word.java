@@ -16,7 +16,8 @@ public class Word
     private List<Explain> explains;
     private List<Sentence> sentences;
 
-    private Date last_learn_time;
+    private Date last_review_time;
+    private Date next_review_date;
     private int answer_times;
     private int wrong_times;
     private int learn_phase;
@@ -29,12 +30,24 @@ public class Word
         this.forms = forms;
     }
 
-    public Date getLast_learn_time() {
-        return last_learn_time;
+    public void setLang(int lang) {
+        this.lang = lang;
     }
 
-    public void setLast_learn_time(Date last_learn_time) {
-        this.last_learn_time = last_learn_time;
+    public Date getLast_review_time() {
+        return last_review_time;
+    }
+
+    public void setLast_review_time(Date last_review_time) {
+        this.last_review_time = last_review_time;
+    }
+
+    public Date getNext_review_date() {
+        return next_review_date;
+    }
+
+    public void setNext_review_date(Date next_review_date) {
+        this.next_review_date = next_review_date;
     }
 
     public int getAnswer_times() {

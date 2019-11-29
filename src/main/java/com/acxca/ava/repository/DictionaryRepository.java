@@ -183,6 +183,20 @@ public interface DictionaryRepository {
             "</script>"})
     List<Word> selectWord5(@Param("lang") Integer lang, @Param("spell") String spell, @Param("skip") Integer skip, @Param("count") Integer count);
 
+
+
+    @Select({"<script>",
+            "select b.*,a.phase,a.last_review_time,a.next_review_date,a.answer_times,a.wrong_times ",
+            "from  `vocab.user_word` a",
+            "inner join `vocab.word` b",
+            "on a.word_id = b.id",
+            "where a.deleted=0",
+            "and a.lang = #{lang}",
+            "order by a.add_time desc",
+            "limit #{skip},#{count}",
+            "</script>"})
+    List<Word> selectWord6(@Param("user_id") String user_id, @Param("lang") Integer lang, @Param("skip") Integer skip, @Param("count") Integer count);
+
     @Select("select * from `vocab.word` where lang=#{lang} and spell=#{spell} and deleted=0")
     List<Word> selectWordsBySpell(@Param("lang") Integer lang, @Param("spell") String spell);
 

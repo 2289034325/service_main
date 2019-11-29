@@ -7,6 +7,7 @@ import com.acxca.ava.repository.DictionaryRepository;
 import com.acxca.components.java.entity.BusinessException;
 import com.acxca.components.java.util.DateUtil;
 import com.acxca.components.spring.jwt.JwtUserDetail;
+import com.alibaba.fastjson.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -296,5 +297,16 @@ public class AppDictionaryController {
         }
 
         return ret;
+    }
+
+    @RequestMapping(path = "word/list",method = RequestMethod.GET)
+    public ResponseEntity<Object> getWordList(@RequestParam(value = "lang") Integer lang,
+                                                 @RequestParam("pageSize") int pageSize,
+                                                 @RequestParam("currentPage") int currentPage) {
+        JwtUserDetail ud = (JwtUserDetail)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+         List<Word> words = dictionaryRepository.selectWord6(ud.getId(),lang, pageSize * currentPage, pageSize);
+
+        return new ResponseEntity(words, HttpStatus.OK);
     }
 }
