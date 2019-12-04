@@ -186,7 +186,7 @@ public interface DictionaryRepository {
 
 
     @Select({"<script>",
-            "select b.*,a.phase,a.last_review_time,a.next_review_date,a.answer_times,a.wrong_times ",
+            "select b.*,a.phase as learn_phase,a.last_review_time,a.next_review_date,a.answer_times,a.wrong_times ",
             "from  `vocab.user_word` a",
             "inner join `vocab.word` b",
             "on a.word_id = b.id",
