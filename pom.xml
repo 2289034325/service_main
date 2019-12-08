@@ -75,6 +75,8 @@
                 <includes>
                     <include>*.properties</include>
                     <include>*.xml</include>
+                    <include>Dockerfile</include>
+                    <include>start.sh</include>
                 </includes>
                 <excludes>
                     <exclude>pom.xml</exclude>
