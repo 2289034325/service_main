@@ -57,6 +57,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/app/speech/article/media/**").permitAll()
                 .antMatchers("/favicon.ico").permitAll()
                 .antMatchers("/kaptcha/**").permitAll()
+                .antMatchers("/info/**").permitAll()
                 .antMatchers("/console/**").hasAnyAuthority("admin")
                 .anyRequest().authenticated().
                 // 权限问题处理
