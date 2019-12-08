@@ -4,7 +4,8 @@ WORKDIR /home
 COPY *.jar app.jar
 COPY *.properties ./
 COPY start.sh start.sh
+RUN chmod +x start.sh
 
 EXPOSE 80
 
-ENTRYPOINT ["start.sh"]
+ENTRYPOINT ["/home/start.sh"]
