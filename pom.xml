@@ -84,6 +84,7 @@
             </resource>
             <resource>
                 <directory>${basedir}/src/main/resources</directory>
+                <targetPath>${project.build.directory}/dist</targetPath>
             </resource>
         </resources>
         <plugins>
