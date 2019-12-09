@@ -6,7 +6,6 @@ RUN apk add --update ttf-dejavu fontconfig && rm -rf /var/cache/apk/*
 WORKDIR /home
 COPY *.jar app.jar
 COPY *.properties ./
-COPY *.xml ./
 COPY start.sh start.sh
 RUN chmod +x start.sh
 
