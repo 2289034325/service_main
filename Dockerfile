@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-alpine
+FROM registry.cn-shanghai.aliyuncs.com/acxca/openjdk8-ex:latest
 
 ENV LANG en_US.UTF-8
 RUN apk add --update ttf-dejavu fontconfig && rm -rf /var/cache/apk/*

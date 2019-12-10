@@ -10,8 +10,11 @@ Target Server Type    : MYSQL
 Target Server Version : 50505
 File Encoding         : 65001
 
-Date: 2019-11-15 17:45:52
+Date: 2019-12-09 21:08:25
 */
+
+CREATE DATABASE ava CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+use ava;
 
 SET FOREIGN_KEY_CHECKS=0;
 
@@ -40,6 +43,8 @@ CREATE TABLE `speech.article` (
   `title` varchar(50) NOT NULL,
   `description` varchar(512) NOT NULL,
   `performer` varchar(50) NOT NULL,
+  `video_id` varchar(36) DEFAULT NULL,
+  `audio_id` varchar(36) DEFAULT NULL,
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -52,8 +57,10 @@ CREATE TABLE `speech.article_media` (
   `id` varchar(36) NOT NULL,
   `article_id` varchar(36) NOT NULL,
   `media_id` varchar(36) NOT NULL,
+  `media_usage` tinyint(4) NOT NULL COMMENT '目前只有 表演者的原声 audio,video，以后可以扩展到讲解视频，模仿视频',
+  `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Table structure for speech.media
@@ -62,7 +69,6 @@ DROP TABLE IF EXISTS `speech.media`;
 CREATE TABLE `speech.media` (
   `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
-  `type` varchar(20) NOT NULL,
   `path` varchar(255) NOT NULL COMMENT '文件存储位置，本地硬盘中或者oss上',
   `time` float NOT NULL COMMENT '音频或者视频时长',
   PRIMARY KEY (`id`)
@@ -75,6 +81,7 @@ DROP TABLE IF EXISTS `speech.paragraph`;
 CREATE TABLE `speech.paragraph` (
   `id` varchar(36) NOT NULL,
   `article_id` varchar(36) NOT NULL,
+  `index` int(11) NOT NULL,
   `text` text NOT NULL,
   `translation` text NOT NULL,
   `performer` varchar(20) NOT NULL,
@@ -107,6 +114,7 @@ CREATE TABLE `speech.split` (
   `id` varchar(36) NOT NULL,
   `article_id` varchar(36) NOT NULL,
   `paragraph_id` varchar(36) NOT NULL,
+  `index` int(11) NOT NULL,
   `start_index` int(11) NOT NULL COMMENT '在段落中的起始位置（字符串中的index）',
   `end_index` int(11) NOT NULL,
   `start_time` float NOT NULL COMMENT '在音频或者视频中对应的时间点',
@@ -144,32 +152,51 @@ CREATE TABLE `stardict` (
 ) ENGINE=MyISAM AUTO_INCREMENT=3397295 DEFAULT CHARSET=utf8;
 
 -- ----------------------------
--- Table structure for user
+-- Table structure for user.credential
 -- ----------------------------
-DROP TABLE IF EXISTS `user`;
-CREATE TABLE `user` (
+DROP TABLE IF EXISTS `user.credential`;
+CREATE TABLE `user.credential` (
   `id` varchar(36) NOT NULL,
   `username` varchar(50) NOT NULL,
   `password` varchar(50) NOT NULL,
   `roles` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `avatar` text NOT NULL,
   `enabled` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `ava`.`user.credential` (`id`, `username`, `password`, `roles`, `enabled`) VALUES ('daec0636-0db0-43d4-a968-5095b66afd15', 'ac', 'e10adc3949ba59abbe56e057f20f883e', 'admin,user', b'1');
+
+-- ----------------------------
+-- Table structure for user.user
+-- ----------------------------
+DROP TABLE IF EXISTS `user.user`;
+CREATE TABLE `user.user` (
+  `id` varchar(36) NOT NULL,
+  `credential_id` varchar(36) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `sex` bit(1) NOT NULL,
+  `birth` date NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `phone` varchar(50) NOT NULL,
+  `avatar` text NOT NULL,
+  `reg_date` date NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `ava`.`user.user` (`id`, `credential_id`, `name`, `sex`, `birth`, `email`, `phone`, `avatar`, `reg_date`) VALUES ('237640c8-9f25-47ab-8bb3-658490af4738', 'daec0636-0db0-43d4-a968-5095b66afd15', '旺财', b'1', '2019-11-12', '22@qq.com', '123', '123', '2019-11-16');
 
 -- ----------------------------
 -- Table structure for vocab.explain
 -- ----------------------------
 DROP TABLE IF EXISTS `vocab.explain`;
 CREATE TABLE `vocab.explain` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `word_id` int(11) NOT NULL,
-  `pronounce` varchar(255) NOT NULL,
+  `id` varchar(36) NOT NULL,
+  `word_id` varchar(36) NOT NULL,
+  `pronounce` varchar(50) NOT NULL,
   `explain` varchar(255) NOT NULL,
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1658 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Table structure for vocab.learn_record
@@ -177,9 +204,8 @@ CREATE TABLE `vocab.explain` (
 DROP TABLE IF EXISTS `vocab.learn_record`;
 CREATE TABLE `vocab.learn_record` (
   `id` varchar(36) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `book_id` int(11) NOT NULL,
-  `user_book_id` int(11) NOT NULL,
+  `user_id` varchar(36) NOT NULL,
+  `lang` tinyint(4) NOT NULL,
   `word_count` int(11) NOT NULL,
   `answer_times` int(11) NOT NULL COMMENT '答题次数',
   `wrong_times` int(11) NOT NULL COMMENT '答错次数',
@@ -194,33 +220,32 @@ CREATE TABLE `vocab.learn_record` (
 -- ----------------------------
 DROP TABLE IF EXISTS `vocab.learn_record_detail`;
 CREATE TABLE `vocab.learn_record_detail` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` varchar(36) NOT NULL,
   `learn_record_id` varchar(36) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `book_id` int(11) NOT NULL,
-  `user_book_id` int(11) NOT NULL,
-  `word_id` int(11) NOT NULL,
+  `user_id` varchar(36) NOT NULL,
+  `word_id` varchar(36) NOT NULL,
+  `lang` tinyint(4) NOT NULL,
   `answer_times` int(11) NOT NULL COMMENT '上次学习或者复习时 回答次数',
   `wrong_times` int(11) NOT NULL COMMENT '上次学习或者复习时 回答错误的次数',
   `learn_time` datetime NOT NULL COMMENT '上次学习或者复习的时间',
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=385 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Table structure for vocab.sentence
 -- ----------------------------
 DROP TABLE IF EXISTS `vocab.sentence`;
 CREATE TABLE `vocab.sentence` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `word_id` int(11) NOT NULL,
-  `explain_id` int(11) NOT NULL,
-  `word` varchar(255) NOT NULL,
+  `id` varchar(36) NOT NULL,
+  `word_id` varchar(36) NOT NULL,
+  `explain_id` varchar(36) NOT NULL,
+  `word` varchar(50) NOT NULL,
   `sentence` varchar(255) NOT NULL,
   `translation` varchar(255) NOT NULL,
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2664 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------
 -- Table structure for vocab.user_word
@@ -233,6 +258,8 @@ CREATE TABLE `vocab.user_word` (
   `lang` tinyint(4) NOT NULL,
   `phase` tinyint(4) NOT NULL,
   `finished` bit(1) NOT NULL,
+  `answer_times` int(11) NOT NULL,
+  `wrong_times` int(11) NOT NULL,
   `last_review_time` datetime DEFAULT NULL,
   `next_review_date` date DEFAULT NULL,
   `add_time` datetime NOT NULL,
@@ -245,12 +272,12 @@ CREATE TABLE `vocab.user_word` (
 -- ----------------------------
 DROP TABLE IF EXISTS `vocab.word`;
 CREATE TABLE `vocab.word` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` varchar(36) NOT NULL,
   `lang` tinyint(4) NOT NULL,
-  `spell` varchar(255) NOT NULL,
-  `pronounce` varchar(255) NOT NULL,
-  `meaning` varchar(255) NOT NULL,
+  `spell` varchar(50) NOT NULL,
+  `pronounce` varchar(50) NOT NULL,
+  `meaning` varchar(512) NOT NULL,
   `forms` varchar(255) NOT NULL COMMENT '可能的变形，例如负数，进行时，过去时等等',
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=217 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
