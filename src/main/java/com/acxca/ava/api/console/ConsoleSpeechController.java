@@ -11,6 +11,8 @@ import com.acxca.ava.repository.SpeechRepository;
 import com.acxca.components.java.consts.BusinessMessageMap;
 import com.acxca.components.java.entity.BusinessException;
 import com.acxca.components.java.util.AliyunOSSClient;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,6 +32,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping(path = "console/speech", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ConsoleSpeechController {
+    protected final Log logger = LogFactory.getLog(this.getClass());
+
     @Autowired
     private SpeechRepository speechRepository;
 
@@ -54,6 +58,11 @@ public class ConsoleSpeechController {
         List<Paragraph> paragraphs = speechRepository.selectAllParagraphsByArticleId(id);
         List<ParagraphSplit> splits = speechRepository.selectSplitsByArticleId(id);
         List<Media> medias = speechRepository.selectMediasByArticleId(id);
+
+        medias.forEach(m->{
+            String mediaUrl = ossUtil.getSignedUrl(properties.getOssBucket(), m.getPath() + "/" + m.getName());
+            m.setUrl(mediaUrl);
+        });
 
         paragraphs.stream().forEach(p -> {
             p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
@@ -294,14 +303,14 @@ public class ConsoleSpeechController {
             outputStream.flush();
             response.flushBuffer();
         } catch (IOException e) {
-            System.out.println(e);
+            logger.error(e);
         } finally {
             try {
                 if (randomAccessFile != null) {
                     randomAccessFile.close();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error(e);
             }
         }
     }

@@ -8,6 +8,8 @@ import com.acxca.components.java.entity.BusinessException;
 import com.acxca.components.java.util.DateUtil;
 import com.acxca.components.spring.jwt.JwtUserDetail;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping(path = "app/dictionary",produces= MediaType.APPLICATION_JSON_VALUE)
 public class AppDictionaryController {
+    protected final Log logger = LogFactory.getLog(this.getClass());
 
     @Autowired
     private DictionaryRepository dictionaryRepository;
@@ -232,11 +235,20 @@ public class AppDictionaryController {
                     insertUserWord(w,ud.getId());
                 }
 
-                // 保存入库后再次查询
-                ret = selectWords(lang, form);
+                if(ws.length >0) {
+                    // 由于简体繁体的关系，静冈 查到的词是 静岡 ，spell和form都跟查询form不同，导致这里查不到
+                    // 所以日语需要特殊处理
+                    String newForm = form;
+                    if(!Arrays.stream(ws).anyMatch(w->w.getSpell().equals(form) || w.getForms().contains(form))) {
+                        newForm = ws[0].getSpell();
+                    }
+
+                    // 保存入库后再次查询
+                    ret = selectWords(lang, newForm);
+                }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
         }
 
         //将查询结果返回给用户

@@ -2,11 +2,20 @@ package com.acxca.ava.entity;
 
 
 public class Media {
-    public String id;
-    public String name;
-    public String path;
-    public int usage;
-    public float time;
+    private String id;
+    private String name;
+    private String path;
+    private int usage;
+    private float time;
+    private String url;
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
 
     public String getId() {
         return id;

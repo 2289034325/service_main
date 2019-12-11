@@ -3,6 +3,7 @@ package com.acxca.ava.config;
 
 import com.acxca.components.java.util.AliyunOSSClient;
 import com.acxca.components.java.util.DateUtil;
+import com.acxca.components.spring.config.ExceptionConfig;
 import com.acxca.components.spring.config.JwtAuthConfig;
 import com.acxca.components.spring.config.KaptchaConfig;
 import com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceBuilder;
@@ -25,7 +26,7 @@ import javax.sql.DataSource;
 @Configuration
 @ComponentScan(basePackages = "com.acxca.ava.service")
 @MapperScan(basePackages = {"com.acxca.ava.repository"})
-@Import({JwtAuthConfig.class, KaptchaConfig.class})
+@Import({JwtAuthConfig.class, KaptchaConfig.class, ExceptionConfig.class})
 public class Config {
 
     @Autowired

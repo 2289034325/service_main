@@ -5,6 +5,8 @@ import com.acxca.ava.entity.*;
 import com.acxca.ava.repository.SpeechRepository;
 import com.acxca.components.java.util.AliyunOSSClient;
 import com.acxca.components.spring.jwt.JwtUserDetail;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,6 +39,8 @@ public class AppSpeechController {
     @Autowired
     private RestTemplate restTemplate;
 
+    protected final Log logger = LogFactory.getLog(this.getClass());
+
     @RequestMapping(path = "article/list", method = RequestMethod.GET)
     public ResponseEntity<Object> searchArticles(@RequestParam(value = "lang", required = false) Integer lang, @RequestParam(value = "title", required = false) String title) {
 
@@ -52,6 +56,10 @@ public class AppSpeechController {
         List<Paragraph> paragraphs = speechRepository.selectAllParagraphsByArticleId(id);
         List<ParagraphSplit> splits = speechRepository.selectSplitsByArticleId(id);
         List<Media> medias = speechRepository.selectMediasByArticleId(id);
+        medias.forEach(m->{
+            String mediaUrl = ossUtil.getSignedUrl(properties.getOssBucket(), m.getPath() + "/" + m.getName());
+            m.setUrl(mediaUrl);
+        });
 
         paragraphs.stream().forEach(p -> {
             p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
@@ -179,14 +187,14 @@ public class AppSpeechController {
             outputStream.flush();
             response.flushBuffer();
         } catch (IOException e) {
-            System.out.println(e);
+            logger.error(e);
         } finally {
             try {
                 if (randomAccessFile != null) {
                     randomAccessFile.close();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.error(e);
             }
         }
     }
