@@ -16,7 +16,7 @@ public interface SpeechRepository {
             "and lang = #{lang} ",
             "</when>",
             "<when test='title != null and title != \"\"'>",
-            "and title = #{title} ",
+            "and title like '%' #{title} '%' ",
             "</when>",
             "</script>"
     })

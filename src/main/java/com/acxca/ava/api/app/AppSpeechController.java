@@ -44,6 +44,12 @@ public class AppSpeechController {
     @RequestMapping(path = "article/list", method = RequestMethod.GET)
     public ResponseEntity<Object> searchArticles(@RequestParam(value = "lang", required = false) Integer lang, @RequestParam(value = "title", required = false) String title) {
 
+        // 让审核账号只能看到一个
+        JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if(ud.getName().equals("guest")){
+            title = "Wolf of Wall Street";
+        }
+
         Iterable<Article> articles = speechRepository.selectArticles(lang, title);
 
         return new ResponseEntity(articles, HttpStatus.OK);
