@@ -192,6 +192,7 @@ public interface DictionaryRepository {
             "on a.word_id = b.id",
             "where a.deleted=0",
             "and a.lang = #{lang}",
+            "and a.user_id = #{user_id}",
             "order by a.add_time desc",
             "limit #{skip},#{count}",
             "</script>"})
