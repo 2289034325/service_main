@@ -25,7 +25,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -180,7 +182,31 @@ public class ConsoleSpeechController {
     }
 
     @RequestMapping(path = "paragraph/modify", method = RequestMethod.POST)
+    @Transactional
     public ResponseEntity<Object> modifyParagraph(@RequestBody Paragraph paragraph) {
+
+        Paragraph op = speechRepository.selectParagraphById(paragraph.getId());
+
+        // 如果修改了text，而且长度不一样，会影响到split的index，所以需要更新split
+        if(op.getText().length() != paragraph.getText().length()){
+            List<ParagraphSplit> splits = speechRepository.selectSplitsByParagraphId(paragraph.getId());
+            splits.sort(Comparator.comparing(ParagraphSplit::getIndex));
+            // 保留整段的起止时间
+            Float start_time = splits.get(0).getStart_time();
+            Float end_time = splits.get(splits.size()-1).getEnd_time();
+
+            // 删掉原有的分段，插入一个新的
+            speechRepository.deleteSplits(paragraph.getId());
+            ParagraphSplit split = new ParagraphSplit();
+            split.setArticle_id(op.getArticle_id());
+            split.setParagraph_id(op.getId());
+            split.setId(UUID.randomUUID().toString());
+            split.setStart_index(0);
+            split.setEnd_index(paragraph.getText().length() - 1);
+            split.setStart_time(start_time);
+            split.setEnd_time(end_time);
+            speechRepository.insertSplit(split);
+        }
 
         speechRepository.updateParagraph(paragraph);
 
@@ -198,10 +224,27 @@ public class ConsoleSpeechController {
     @RequestMapping(path = "paragraph/split", method = RequestMethod.POST)
     @Transactional
     public ResponseEntity<Object> splitParagraph(@RequestBody Paragraph paragraph) {
+        // 保留整段的时间段，按照文本长度分配
+        Paragraph p = speechRepository.selectParagraphById(paragraph.getId());
+        List<ParagraphSplit> splits = speechRepository.selectSplitsByParagraphId(paragraph.getId());
+        splits.sort(Comparator.comparing(ParagraphSplit::getIndex));
+        // 保留整段的起止时间
+        Float start_time = splits.get(0).getStart_time();
+        Float end_time = splits.get(splits.size()-1).getEnd_time();
+        Float duration = end_time-start_time;
 
         speechRepository.deleteSplits(paragraph.getId());
-        for(ParagraphSplit ps: paragraph.getSplits()){
+        Float s_start_time = start_time;
+        for(int i= 0;i< paragraph.getSplits().size();i++){
+            ParagraphSplit ps = paragraph.getSplits().get(i);
+
             ps.setId(UUID.randomUUID().toString());
+            float sdu = (ps.getEnd_index()-ps.getStart_index()+1)/((float)p.getText().length())*duration;
+            sdu =  (float)(Math.round( sdu * 100 ) / 100.0);
+            ps.setStart_time(s_start_time);
+            ps.setEnd_time(s_start_time+sdu);
+
+            s_start_time += sdu;
         }
         speechRepository.insertSplits(paragraph.getSplits());
 
@@ -215,7 +258,6 @@ public class ConsoleSpeechController {
 
         return new ResponseEntity("", HttpStatus.OK);
     }
-
 
     @RequestMapping(path = "article/media/{id}", method = RequestMethod.GET)
     public void getMedia(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") String id) {

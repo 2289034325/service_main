@@ -90,11 +90,11 @@ public interface SpeechRepository {
     @Update("update `speech.split` set start_time=#{start_time},end_time=#{end_time} where id=#{id}")
     void updateSplitTime(ParagraphSplit split);
 
-    @Select("select * from `speech.split` where paragraph_id=#{paragraphId}")
-    List<ParagraphSplit> selectSplitsByParagraphId(Integer paragraphId);
+    @Select("select * from `speech.split` where paragraph_id=#{paragraphId} and deleted=0")
+    List<ParagraphSplit> selectSplitsByParagraphId(String paragraphId);
 
     @Select("select * from `speech.split` where id=#{id}")
-    ParagraphSplit selectSplitById(int id);
+    ParagraphSplit selectSplitById(String id);
 
     @Select("select * from `speech.split` where article_id=#{articleId} and deleted=0")
     List<ParagraphSplit> selectSplitsByArticleId(String articleId);
@@ -102,7 +102,7 @@ public interface SpeechRepository {
     @Select({
             "select c.*,b.media_usage as `usage`",
             "from `speech.article` a",
-            "inner join `speech.article_media` b on a.id=b.article_id",
+            "inner join `speech.article_media` b on a.id=b.article_id and b.deleted=0",
             "inner join `speech.media` c on b.media_id=c.id",
             "where a.id=#{id}"
     })
