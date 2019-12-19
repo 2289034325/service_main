@@ -10,11 +10,8 @@ Target Server Type    : MYSQL
 Target Server Version : 50505
 File Encoding         : 65001
 
-Date: 2019-12-09 21:08:25
+Date: 2019-12-19 22:14:10
 */
-
-CREATE DATABASE ava CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-use ava;
 
 SET FOREIGN_KEY_CHECKS=0;
 
@@ -164,8 +161,6 @@ CREATE TABLE `user.credential` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `ava`.`user.credential` (`id`, `username`, `password`, `roles`, `enabled`) VALUES ('daec0636-0db0-43d4-a968-5095b66afd15', 'ac', 'e10adc3949ba59abbe56e057f20f883e', 'admin,user', b'1');
-
 -- ----------------------------
 -- Table structure for user.user
 -- ----------------------------
@@ -182,8 +177,6 @@ CREATE TABLE `user.user` (
   `reg_date` date NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
-
-INSERT INTO `ava`.`user.user` (`id`, `credential_id`, `name`, `sex`, `birth`, `email`, `phone`, `avatar`, `reg_date`) VALUES ('237640c8-9f25-47ab-8bb3-658490af4738', 'daec0636-0db0-43d4-a968-5095b66afd15', '旺财', b'1', '2019-11-12', '22@qq.com', '123', '123', '2019-11-16');
 
 -- ----------------------------
 -- Table structure for vocab.explain
@@ -278,6 +271,65 @@ CREATE TABLE `vocab.word` (
   `pronounce` varchar(50) NOT NULL,
   `meaning` varchar(512) NOT NULL,
   `forms` varchar(255) NOT NULL COMMENT '可能的变形，例如负数，进行时，过去时等等',
+  `deleted` bit(1) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for writing.article
+-- ----------------------------
+DROP TABLE IF EXISTS `writing.article`;
+CREATE TABLE `writing.article` (
+  `id` varchar(36) NOT NULL,
+  `lang` tinyint(4) NOT NULL,
+  `source` varchar(50) NOT NULL,
+  `title` varchar(100) NOT NULL,
+  `insert_time` datetime NOT NULL,
+  `deleted` bit(1) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for writing.paragraph
+-- ----------------------------
+DROP TABLE IF EXISTS `writing.paragraph`;
+CREATE TABLE `writing.paragraph` (
+  `id` varchar(36) NOT NULL,
+  `article_id` varchar(36) NOT NULL,
+  `index` int(11) NOT NULL,
+  `text` text NOT NULL,
+  `deleted` bit(1) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for writing.recite
+-- ----------------------------
+DROP TABLE IF EXISTS `writing.recite`;
+CREATE TABLE `writing.recite` (
+  `id` varchar(36) NOT NULL,
+  `user_id` varchar(36) NOT NULL,
+  `article_id` varchar(36) NOT NULL,
+  `paragraph_id` varchar(36) NOT NULL,
+  `split_id` varchar(36) NOT NULL,
+  `use_time` float NOT NULL,
+  `score` float NOT NULL,
+  `content` text NOT NULL,
+  `submit_time` datetime NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- Table structure for writing.split
+-- ----------------------------
+DROP TABLE IF EXISTS `writing.split`;
+CREATE TABLE `writing.split` (
+  `id` varchar(36) NOT NULL,
+  `article_id` varchar(36) NOT NULL,
+  `paragraph_id` varchar(36) NOT NULL,
+  `index` int(11) NOT NULL,
+  `start_index` int(11) NOT NULL COMMENT '在段落中的起始位置（字符串中的index）',
+  `end_index` int(11) NOT NULL,
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
