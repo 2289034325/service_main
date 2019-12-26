@@ -11,12 +11,31 @@ public class WritingArticle
     private int lang;
     private String source;
     private String title;
+    private String description;
     private Date insert_time;
     private List<Paragraph> paragraphs;
+    private List<ReciteRecord> histories;
     private boolean deleted;
 
     public WritingArticle(){
         this.paragraphs = new ArrayList<>();
+        this.histories = new ArrayList<>();
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<ReciteRecord> getHistories() {
+        return histories;
+    }
+
+    public void setHistories(List<ReciteRecord> histories) {
+        this.histories = histories;
     }
 
     public String getId() {

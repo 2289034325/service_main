@@ -5,6 +5,8 @@ import com.acxca.ava.entity.ParagraphSplit;
 import com.acxca.ava.entity.ReciteRecord;
 import com.acxca.ava.entity.WritingArticle;
 import com.acxca.ava.repository.WritingRepository;
+import com.acxca.components.java.util.DiffUtil;
+import com.acxca.components.java.util.diff_match_patch;
 import com.acxca.components.spring.jwt.JwtUserDetail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -34,15 +37,26 @@ public class AppWritingController {
 
     @RequestMapping(path = "article/{id}", method = RequestMethod.GET)
     public ResponseEntity<Object> getArticle(@PathVariable("id") String id) {
+        JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
 
         WritingArticle article = writingRepository.selectArticleById(id);
         List<Paragraph> paragraphs = writingRepository.selectAllParagraphsByArticleId(id);
         List<ParagraphSplit> splits = writingRepository.selectSplitsByArticleId(id);
+        List<ReciteRecord> histories = writingRepository.selectArticleReciteHistory(ud.getId(),id);
+
+        for(ReciteRecord rr:histories){
+            Optional<Paragraph> prg = paragraphs.stream().filter(p->p.getId().equalsIgnoreCase(rr.getParagraph_id())).findFirst();
+            String originText = prg.get().getText();
+            List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,rr.getContent(),true);
+            rr.setDiffs(dfs);
+        }
 
         paragraphs.stream().forEach(p -> {
             p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
         });
         article.setParagraphs(paragraphs);
+        article.setHistories(histories);
 
         return new ResponseEntity(article, HttpStatus.OK);
     }
@@ -51,7 +65,14 @@ public class AppWritingController {
     public ResponseEntity<Object> getReciteHistory(@PathVariable("split_id") String id) {
         JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
+        ParagraphSplit ps = writingRepository.selectSplitById(id);
+        Paragraph p = writingRepository.selectParagraphById(ps.getParagraph_id());
+        String originText = p.getText().substring(ps.getStart_index(),ps.getEnd_index()+1);
         List<ReciteRecord> records = writingRepository.selectSplitReciteHistory(ud.getId(),id);
+        for(ReciteRecord rr:records){
+            List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,rr.getContent(),true);
+            rr.setDiffs(dfs);
+        }
 
         return new ResponseEntity(records, HttpStatus.OK);
     }
@@ -60,10 +81,37 @@ public class AppWritingController {
     public ResponseEntity<Object> saveReciteHistory(@RequestBody ReciteRecord record) {
         JwtUserDetail ud = (JwtUserDetail) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
+        ParagraphSplit ps = writingRepository.selectSplitById(record.getSplit_id());
+        Paragraph p = writingRepository.selectParagraphById(ps.getParagraph_id());
+        String originText = p.getText().substring(ps.getStart_index(),ps.getEnd_index()+1);
+
+        // 计算得分
+        // 错一个单词扣0.5分，标点符号不计，大小写不计，总分5分，扣完为止
+        float score = 5.0f;
+        List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,record.getContent(),true);
+        for(diff_match_patch.Diff df:dfs){
+            if(df.operation == diff_match_patch.Operation.DELETE){
+                String[] words = df.text.split(" ");
+                for(String w: words){
+                    // 判断是否是单词（有字母，即判定为单词）
+                    if(w.matches(".*[a-zA-Z]+.*")) {
+                        score -= 0.5;
+                    }
+                }
+            }
+            if(score <= 0){
+                score = 0;
+                break;
+            }
+        }
+
         record.setUser_id(ud.getId());
         record.setSubmit_time(new Date());
-
+        record.setScore(score);
         writingRepository.insertSplitReciteRecord(record);
+
+        // 将dif结果返回前台，用于页面渲染
+        record.setDiffs(dfs);
 
         return new ResponseEntity(record, HttpStatus.OK);
     }
@@ -71,7 +119,7 @@ public class AppWritingController {
     @RequestMapping(path = "article/recite", method = RequestMethod.PUT)
     public ResponseEntity<Object> setReciteScore(@RequestBody Map param) {
         String id = param.get("id").toString();
-        float score = Integer.parseInt(param.get("score").toString());
+        float score = Float.parseFloat(param.get("score").toString());
 
         writingRepository.updateReciteScore(id,score);
 

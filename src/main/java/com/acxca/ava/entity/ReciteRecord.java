@@ -1,7 +1,10 @@
 package com.acxca.ava.entity;
 
 
+import com.acxca.components.java.util.diff_match_patch;
+
 import java.util.Date;
+import java.util.List;
 
 public class ReciteRecord {
     private String id;
@@ -14,6 +17,16 @@ public class ReciteRecord {
     private float score;
     private String content;
     private Date submit_time;
+
+    private List<diff_match_patch.Diff> diffs;
+
+    public List<diff_match_patch.Diff> getDiffs() {
+        return diffs;
+    }
+
+    public void setDiffs(List<diff_match_patch.Diff> diffs) {
+        this.diffs = diffs;
+    }
 
     public String getId() {
         return id;
