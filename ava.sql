@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 50505
 File Encoding         : 65001
 
-Date: 2019-12-19 22:14:10
+Date: 2019-12-26 19:11:01
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -284,6 +284,7 @@ CREATE TABLE `writing.article` (
   `lang` tinyint(4) NOT NULL,
   `source` varchar(50) NOT NULL,
   `title` varchar(100) NOT NULL,
+  `description` varchar(512) NOT NULL,
   `insert_time` datetime NOT NULL,
   `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
