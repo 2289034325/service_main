@@ -46,8 +46,12 @@ public class AppWritingController {
         List<ReciteRecord> histories = writingRepository.selectArticleReciteHistory(ud.getId(),id);
 
         for(ReciteRecord rr:histories){
+            // 找到其所属的段落和片段
             Optional<Paragraph> prg = paragraphs.stream().filter(p->p.getId().equalsIgnoreCase(rr.getParagraph_id())).findFirst();
-            String originText = prg.get().getText();
+            Optional<ParagraphSplit> spl = splits.stream().filter(s->s.getId().equalsIgnoreCase(rr.getSplit_id())).findFirst();
+
+            String originText = prg.get().getText().substring(spl.get().getStart_index(),spl.get().getEnd_index()+1);
+
             List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,rr.getContent(),true);
             rr.setDiffs(dfs);
         }

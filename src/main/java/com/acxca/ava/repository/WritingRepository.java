@@ -64,6 +64,9 @@ public interface WritingRepository {
     @Update("update `writing.split` set deleted=1 where paragraph_id=#{paragraph_id}")
     void deleteSplits(String paragraph_id);
 
+    @Update("update `writing.recite` set deleted=1 where paragraph_id=#{paragraph_id}")
+    void deleteReciteRecord(String paragraph_id);
+
     @Insert("insert into `writing.split` (id,article_id,paragraph_id,`index`,start_index,end_index,deleted) values (#{id},#{article_id},#{paragraph_id},#{index},#{start_index},#{end_index},0)")
     void insertSplit(ParagraphSplit split);
 
@@ -87,14 +90,14 @@ public interface WritingRepository {
     @Select("select * from `writing.split` where article_id=#{articleId} and deleted=0")
     List<ParagraphSplit> selectSplitsByArticleId(String articleId);
 
-    @Insert("INSERT INTO `writing.recite` (`id`,`user_id`, `article_id`, `paragraph_id`, `split_id`, `use_time`, `score`, `content`, `submit_time`) VALUES " +
-            "(#{id},#{user_id},#{article_id}, #{paragraph_id}, #{split_id}, #{use_time}, #{score}, #{content}, #{submit_time});")
+    @Insert("INSERT INTO `writing.recite` (`id`,`user_id`, `article_id`, `paragraph_id`, `split_id`, `use_time`, `score`, `content`, `submit_time`, `deleted`) VALUES " +
+            "(#{id},#{user_id},#{article_id}, #{paragraph_id}, #{split_id}, #{use_time}, #{score}, #{content}, #{submit_time}, 0);")
     void insertSplitReciteRecord(ReciteRecord record);
 
-    @Select("select * from `writing.recite` where user_id=#{user_id} and split_id=#{split_id}")
+    @Select("select * from `writing.recite` where user_id=#{user_id} and split_id=#{split_id} and deleted=0")
     List<ReciteRecord> selectSplitReciteHistory(@Param("user_id") String user_id, @Param("split_id") String split_id);
 
-    @Select("select * from `writing.recite` where user_id=#{user_id} and article_id=#{article_id}")
+    @Select("select * from `writing.recite` where user_id=#{user_id} and article_id=#{article_id} and deleted=0")
     List<ReciteRecord> selectArticleReciteHistory(@Param("user_id") String user_id, @Param("article_id") String article_id);
 
     @Update("update `writing.recite` set score=#{score} where id=#{id}")

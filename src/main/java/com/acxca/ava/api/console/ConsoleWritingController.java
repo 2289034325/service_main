@@ -113,6 +113,8 @@ public class ConsoleWritingController {
         Paragraph op = writingRepository.selectParagraphById(paragraph.getId());
         // 删掉原有的分段，插入一个新的
         writingRepository.deleteSplits(paragraph.getId());
+        writingRepository.deleteReciteRecord(paragraph.getId());
+
         ParagraphSplit split = new ParagraphSplit();
         split.setArticle_id(op.getArticle_id());
         split.setParagraph_id(op.getId());
@@ -130,6 +132,7 @@ public class ConsoleWritingController {
     public ResponseEntity<Object> deleteParagraph(@PathVariable String id) {
 
         writingRepository.deleteParagraph(id);
+        writingRepository.deleteReciteRecord(id);
 
         return new ResponseEntity("", HttpStatus.OK);
     }
@@ -139,6 +142,8 @@ public class ConsoleWritingController {
     public ResponseEntity<Object> splitParagraph(@RequestBody Paragraph paragraph) {
 
         writingRepository.deleteSplits(paragraph.getId());
+        writingRepository.deleteReciteRecord(paragraph.getId());
+
         paragraph.getSplits().forEach(s->s.setId(UUID.randomUUID().toString()));
         writingRepository.insertSplits(paragraph.getSplits());
 
