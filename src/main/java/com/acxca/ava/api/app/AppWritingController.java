@@ -15,10 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -45,22 +42,41 @@ public class AppWritingController {
         List<ParagraphSplit> splits = writingRepository.selectSplitsByArticleId(id);
         List<ReciteRecord> histories = writingRepository.selectArticleReciteHistory(ud.getId(),id);
 
-        for(ReciteRecord rr:histories){
-            // 找到其所属的段落和片段
-            Optional<Paragraph> prg = paragraphs.stream().filter(p->p.getId().equalsIgnoreCase(rr.getParagraph_id())).findFirst();
-            Optional<ParagraphSplit> spl = splits.stream().filter(s->s.getId().equalsIgnoreCase(rr.getSplit_id())).findFirst();
+        // 取每个split的最新默写记录
+        List<ReciteRecord> nhs = new ArrayList<>();
+        for(ParagraphSplit sp: splits){
+            Optional<ReciteRecord> rr = histories.stream().filter(h->h.getSplit_id().equalsIgnoreCase(sp.getId())).sorted((h1,h2)->h1.getSubmit_time().after(h2.getSubmit_time())?-1:1).findFirst();
+            if(rr.isPresent()){
+                ReciteRecord nrr = rr.get();
+                // 找到其所属的段落和片段
+                Optional<Paragraph> prg = paragraphs.stream().filter(p->p.getId().equalsIgnoreCase(nrr.getParagraph_id())).findFirst();
+                Optional<ParagraphSplit> spl = splits.stream().filter(s->s.getId().equalsIgnoreCase(nrr.getSplit_id())).findFirst();
 
-            String originText = prg.get().getText().substring(spl.get().getStart_index(),spl.get().getEnd_index()+1);
+                String originText = prg.get().getText().substring(spl.get().getStart_index(),spl.get().getEnd_index()+1);
 
-            List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,rr.getContent(),true);
-            rr.setDiffs(dfs);
+                List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,nrr.getContent(),true);
+                nrr.setDiffs(dfs);
+
+                nhs.add(nrr);
+            }
         }
+
+//        for(ReciteRecord rr:histories){
+//            // 找到其所属的段落和片段
+//            Optional<Paragraph> prg = paragraphs.stream().filter(p->p.getId().equalsIgnoreCase(rr.getParagraph_id())).findFirst();
+//            Optional<ParagraphSplit> spl = splits.stream().filter(s->s.getId().equalsIgnoreCase(rr.getSplit_id())).findFirst();
+//
+//            String originText = prg.get().getText().substring(spl.get().getStart_index(),spl.get().getEnd_index()+1);
+//
+//            List<diff_match_patch.Diff> dfs = DiffUtil.diff_by_word(originText,rr.getContent(),true);
+//            rr.setDiffs(dfs);
+//        }
 
         paragraphs.stream().forEach(p -> {
             p.setSplits(splits.stream().filter(s -> s.getParagraph_id().equals(p.getId())).collect(Collectors.toList()));
         });
         article.setParagraphs(paragraphs);
-        article.setHistories(histories);
+        article.setHistories(nhs);
 
         return new ResponseEntity(article, HttpStatus.OK);
     }

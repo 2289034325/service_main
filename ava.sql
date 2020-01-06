@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 50505
 File Encoding         : 65001
 
-Date: 2019-12-26 19:11:01
+Date: 2020-01-01 14:33:08
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -317,6 +317,7 @@ CREATE TABLE `writing.recite` (
   `score` float NOT NULL,
   `content` text NOT NULL,
   `submit_time` datetime NOT NULL,
+  `deleted` bit(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
