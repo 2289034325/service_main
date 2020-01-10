@@ -11,7 +11,10 @@ public class LearnRecordDetail {
     private int answer_times;
     private int wrong_times;
     private Date learn_time;
+
+    // 数据库中字段名是user_word.phase，前端起名learn_phase，为了兼容，两者都保留
     private int phase;
+    private int learn_phase;
     private Date next_review_date;
     private boolean finished;
 
@@ -77,6 +80,16 @@ public class LearnRecordDetail {
 
     public void setPhase(int phase) {
         this.phase = phase;
+        this.learn_phase = phase;
+    }
+
+    public int getLearn_phase() {
+        return phase;
+    }
+
+    public void setLearn_phase(int learn_phase) {
+        this.learn_phase = learn_phase;
+        this.phase = learn_phase;
     }
 
     public boolean isFinished() {
